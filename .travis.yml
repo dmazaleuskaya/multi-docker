@@ -1,0 +1,31 @@
+# allow admin access
+sudo: required
+
+# download docker
+services:
+  - docker
+
+# build all images which are required for further steps
+# e.g. if tests should be run on the server too a new line within 'before_install' block will be added:
+# - docker build -t dmazaleuskaya/server-test -f ./server/Dockerfile.dev ./server
+before_install:
+  - docker build -t dmazaleuskaya/react-test -f ./client/Dockerfile.dev ./client
+
+# primary test running section
+script:
+  - docker run -e CI=true dmazaleuskaya/react-test npm test
+
+# if tests successfully pass we'll build production versions of the project
+# and push it to hub.docker.com
+after_success:
+  - docker build -t dmazaleuskaya/multi-client ./client
+  - docker build -t dmazaleuskaya/multi-server ./server
+  - docker build -t dmazaleuskaya/multi-nginx ./nginx
+  - docker build -t dmazaleuskaya/multi-worker ./worker
+  # log in to docker CLI in order to push files to hub.docker.com
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  # push images to the hub.docker.com
+  - docker push dmazaleuskaya/multi-client
+  - docker push dmazaleuskaya/multi-server
+  - docker push dmazaleuskaya/multi-nginx
+  - docker push dmazaleuskaya/multi-worker
